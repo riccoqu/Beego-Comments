@@ -49,6 +49,7 @@ func registerSession() error {
 		var err error
 		sessionConfig := AppConfig.String("sessionConfig")
 		if sessionConfig == "" {
+			// 启用默认的 Session配置
 			conf := map[string]interface{}{
 				"cookieName":      BConfig.WebConfig.Session.SessionName,
 				"gclifetime":      BConfig.WebConfig.Session.SessionGCMaxLifetime,
@@ -67,6 +68,7 @@ func registerSession() error {
 		if GlobalSessions, err = session.NewManager(BConfig.WebConfig.Session.SessionProvider, sessionConfig); err != nil {
 			return err
 		}
+		//开启一个goroutine来处理session的回收,定义于 session.session.go:227
 		go GlobalSessions.GC()
 	}
 	return nil

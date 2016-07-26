@@ -110,7 +110,7 @@ var (
 	AppConfig *beegoAppConfig
 	// AppPath是程序的绝对路径
 	AppPath string
-	// GlobalSessions is the instance for the session manager
+	// GlobalSessions是管理 session的实例
 	GlobalSessions *session.Manager
 
 	// appConfigPath 是配置文件的保存路径
@@ -119,6 +119,7 @@ var (
 	appConfigProvider = "ini"
 )
 // 初始化函数,主要为了初始化 BConfig变量 然后再进行解析
+// 这样当 init()函数执行完成后 BConfig变量的准备工作完成
 func init() {
 	AppPath, _ = filepath.Abs(filepath.Dir(os.Args[0]))
 

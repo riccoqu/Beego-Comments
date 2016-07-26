@@ -62,7 +62,7 @@ func Run(params ...string) {
 			BConfig.Listen.HTTPPort, _ = strconv.Atoi(strs[1])
 		}
 	}
-	//单例模式， BeeApp只有一个
+	//单例模式， BeeApp只有一个,定义并初始化于 app.go文件中
 	BeeApp.Run()
 }
 
