@@ -50,7 +50,7 @@ func NewApp() *App {
 	return app
 }
 
-// Run beego application.
+// beego启动函数
 func (app *App) Run() {
 	addr := BConfig.Listen.HTTPAddr
 

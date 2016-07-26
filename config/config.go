@@ -46,7 +46,7 @@ import (
 	"fmt"
 )
 
-// Configer defines how to get and set value from configuration raw data.
+//定义了如何从原始的配置文件获得或者设置值
 type Configer interface {
 	Set(key, val string) error   //support section::key type in given key when using ini type.
 	String(key string) string    //support section::key type in key string when using ini and json type; Int,Int64,Bool,Float,DIY are same.

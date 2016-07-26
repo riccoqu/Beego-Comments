@@ -1,5 +1,7 @@
-.idea
+.dea
 .DS_Store
 *.swp
 *.swo
 beego.iml
+Beego.iml
+.idea/

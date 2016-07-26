@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
+/*
+ *	这个文件主要用于程序配置变量 BConfig的初始化和赋值
+ *	通过 config包获取配置文件中的配置项
+ */
 package beego
 
 import (
@@ -25,7 +30,7 @@ import (
 	"github.com/astaxie/beego/utils"
 )
 
-// Config is the main struct for BConfig
+// Config 是程序主要的配置项类型
 type Config struct {
 	AppName             string //Application name
 	RunMode             string //Running Mode: dev | prod
@@ -99,26 +104,26 @@ type LogConfig struct {
 }
 
 var (
-	// BConfig is the default config for Application
+	// BConfig是程序默认的配置变量
 	BConfig *Config
-	// AppConfig is the instance of Config, store the config information from file
+	// AppConfig保存着文件中的配置项,使用的是 config包下的接口
 	AppConfig *beegoAppConfig
-	// AppPath is the absolute path to the app
+	// AppPath是程序的绝对路径
 	AppPath string
 	// GlobalSessions is the instance for the session manager
 	GlobalSessions *session.Manager
 
-	// appConfigPath is the path to the config files
+	// appConfigPath 是配置文件的保存路径
 	appConfigPath string
 	// appConfigProvider is the provider for the config, default is ini
 	appConfigProvider = "ini"
 )
-
+// 初始化函数,主要为了初始化 BConfig变量 然后再进行解析
 func init() {
 	AppPath, _ = filepath.Abs(filepath.Dir(os.Args[0]))
 
 	os.Chdir(AppPath)
-
+	// 初始化 BCconfig变量
 	BConfig = &Config{
 		AppName:             "beego",
 		RunMode:             DEV,
@@ -184,13 +189,14 @@ func init() {
 		AppConfig = &beegoAppConfig{innerConfig: config.NewFakeConfig()}
 		return
 	}
-
+	// 解析配置项,并保存在 BConfig中
 	if err := parseConfig(appConfigPath); err != nil {
 		panic(err)
 	}
 }
 
-// now only support ini, next will support json.
+// 通过传入的配置文件路径解析对应的配置项
+// 并且保存在 BConfig中,作为应用的默认配置
 func parseConfig(appConfigPath string) (err error) {
 	AppConfig, err = newAppConfig(appConfigProvider, appConfigPath)
 	if err != nil {
@@ -202,7 +208,7 @@ func parseConfig(appConfigPath string) (err error) {
 	} else if runMode := AppConfig.String("RunMode"); runMode != "" {
 		BConfig.RunMode = runMode
 	}
-
+	//这里解析配置项,保存进 BConfig中
 	BConfig.AppName = AppConfig.DefaultString("AppName", BConfig.AppName)
 	BConfig.RecoverPanic = AppConfig.DefaultBool("RecoverPanic", BConfig.RecoverPanic)
 	BConfig.RouterCaseSensitive = AppConfig.DefaultBool("RouterCaseSensitive", BConfig.RouterCaseSensitive)
@@ -305,7 +311,7 @@ func parseConfig(appConfigPath string) (err error) {
 	return nil
 }
 
-// LoadAppConfig allow developer to apply a config file
+// 此函数允许开发者重定义一个配置文件
 func LoadAppConfig(adapterName, configPath string) error {
 	absConfigPath, err := filepath.Abs(configPath)
 	if err != nil {
@@ -326,6 +332,8 @@ func LoadAppConfig(adapterName, configPath string) error {
 	return parseConfig(appConfigPath)
 }
 
+// 使用 config包内的 Configer接口
+// 下面的函数都是为了利用这个接口完成 beegoAppConfig结构体的方法
 type beegoAppConfig struct {
 	innerConfig config.Configer
 }

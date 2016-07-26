@@ -35,7 +35,7 @@ const (
 type hookfunc func() error
 
 var (
-	hooks = make([]hookfunc, 0) //hook function slice to store the hookfunc
+	hooks = make([]hookfunc, 0) //保存 hookfunc的 hooks切片
 )
 
 // AddAPPStartHook is used to register the hookfunc
@@ -45,7 +45,7 @@ func AddAPPStartHook(hf hookfunc) {
 	hooks = append(hooks, hf)
 }
 
-// Run beego application.
+// Beego 应用的的入口函数,初始化了hooks函数,判断beego.Run()是否为下列几种情况
 // beego.Run() default run on HttpPort
 // beego.Run("localhost")
 // beego.Run(":8089")
@@ -62,12 +62,12 @@ func Run(params ...string) {
 			BConfig.Listen.HTTPPort, _ = strconv.Atoi(strs[1])
 		}
 	}
-
+	//单例模式， BeeApp只有一个
 	BeeApp.Run()
 }
 
 func initBeforeHTTPRun() {
-	//init hooks
+	//讲每个函数添加到 hooks中,并且逐个调用
 	AddAPPStartHook(registerMime)
 	AddAPPStartHook(registerDefaultErrorHandler)
 	AddAPPStartHook(registerSession)

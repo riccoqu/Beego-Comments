@@ -9,7 +9,10 @@ import (
 	"github.com/astaxie/beego/session"
 )
 
-//
+// MIME (Multipurpose Internet Mail Extensions) 是描述消息内容类型的因特网标准
+// 可见 http://www.w3school.com.cn/media/media_mimeref.asp
+// 这里使用标准库的 mime.AddExtensionType()将扩展名和mimetype关联
+// mime的定义见 mime.go
 func registerMime() error {
 	for k, v := range mimemaps {
 		mime.AddExtensionType(k, v)
@@ -18,6 +21,7 @@ func registerMime() error {
 }
 
 // register default error http handlers, 404,401,403,500 and 503.
+// 设置不同错误的默认回调方法
 func registerDefaultErrorHandler() error {
 	m := map[string]func(http.ResponseWriter, *http.Request){
 		"401": unauthorized,
@@ -40,6 +44,7 @@ func registerDefaultErrorHandler() error {
 }
 
 func registerSession() error {
+	// BConfig(位于 config.go内的全局变量)
 	if BConfig.WebConfig.Session.SessionOn {
 		var err error
 		sessionConfig := AppConfig.String("sessionConfig")
@@ -66,7 +71,7 @@ func registerSession() error {
 	}
 	return nil
 }
-
+// 构建模板
 func registerTemplate() error {
 	if err := BuildTemplate(BConfig.WebConfig.ViewsPath); err != nil {
 		if BConfig.RunMode == DEV {
