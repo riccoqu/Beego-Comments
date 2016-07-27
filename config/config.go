@@ -71,12 +71,23 @@ type Config interface {
 	Parse(key string) (Configer, error)
 	ParseData(data []byte) (Configer, error)
 }
-
+/*
+ * 在整个 config包中,这个全局变量是最先被创建的。
+ * 然后才是不同源文件的 init()函数执行,同一个包内不同源文件的 init()执行顺序与包名从小到大的排列顺序相同
+ * adapters 用于根据名字分类保存不同的配置器
+ *
+ * 包内的数据逻辑:
+ *	通过获取 Config类型的不同配置器(,注意同配置器在对应包内的 init()函数内注册到了 adapters中,
+ *  	并且实现了 Parse() ParseData()),调用实现了的接口可以获得不同配置器的 ConfigContainer对象(该
+ * 	对象实现了 config.go内的 Configer接口所提供的方法)。从而可以供 beego.config.go文件中的
+ *	beegoAppConfig实例进行获取配置
+ */
 var adapters = make(map[string]Config)
 
 // Register makes a config adapter available by the adapter name.
 // If Register is called twice with the same name or if driver is nil,
 // it panics.
+// 提供给不同配置器注册到 adapters变量中的方法
 func Register(name string, adapter Config) {
 	if adapter == nil {
 		panic("config: Register adapter is nil")
@@ -89,6 +100,9 @@ func Register(name string, adapter Config) {
 
 // NewConfig adapterName is ini/json/xml/yaml.
 // filename is the config file path.
+// 传入配置器的名称和配置文件的路径名
+// 通过调用配置器的 adapter.Parse() 返回一个 不同包内的 ConfigContainer类型。
+// 包内的 ConfigContainer也实现了 Configer接口所定义的不同配置类型的获取
 func NewConfig(adapterName, filename string) (Configer, error) {
 	adapter, ok := adapters[adapterName]
 	if !ok {
@@ -99,6 +113,9 @@ func NewConfig(adapterName, filename string) (Configer, error) {
 
 // NewConfigData adapterName is ini/json/xml/yaml.
 // data is the config data.
+/*
+ * 传入配置器的名称和配置的数据,在解析完传入的数据后获得配置文件路径,然后在 ParseData()方法内调用 Parse()获得 ConfigContainer实例
+ */
 func NewConfigData(adapterName string, data []byte) (Configer, error) {
 	adapter, ok := adapters[adapterName]
 	if !ok {
@@ -112,6 +129,7 @@ func NewConfigData(adapterName string, data []byte) (Configer, error) {
 // It accepts 1, 1.0, t, T, TRUE, true, True, YES, yes, Yes,Y, y, ON, on, On,
 // 0, 0.0, f, F, FALSE, false, False, NO, no, No, N,n, OFF, off, Off.
 // Any other value returns an error.
+// 根据传入的变量判断该配置项的值是否应该解析成 Bool类型
 func ParseBool(val interface{}) (value bool, err error) {
 	if val != nil {
 		switch v := val.(type) {

@@ -104,7 +104,7 @@ type LogConfig struct {
 }
 
 var (
-	// BConfig是程序默认的配置变量
+	// BConfig是程序中s默认的配置变量
 	BConfig *Config
 	// AppConfig保存着文件中的配置项,使用的是 config包下的接口
 	AppConfig *beegoAppConfig
@@ -335,10 +335,11 @@ func LoadAppConfig(adapterName, configPath string) error {
 
 // 使用 config包内的 Configer接口
 // 下面的函数都是为了利用这个接口完成 beegoAppConfig结构体的方法
+// config.Configer接口的实现由 newAppConfig返回配置器的实例已经完成
 type beegoAppConfig struct {
 	innerConfig config.Configer
 }
-
+// 根据配置的配置器名("xml"等),获得对应的配置器实例
 func newAppConfig(appConfigProvider, appConfigPath string) (*beegoAppConfig, error) {
 	ac, err := config.NewConfig(appConfigProvider, appConfigPath)
 	if err != nil {
@@ -346,7 +347,9 @@ func newAppConfig(appConfigProvider, appConfigPath string) (*beegoAppConfig, err
 	}
 	return &beegoAppConfig{ac}, nil
 }
-
+/*
+ * config.Configer接口定义的方法，因为不同的配置器包内的 ConfigContainer实现了此接口，所以可以通过innerConfig实现配置项的获取
+ */
 func (b *beegoAppConfig) Set(key, val string) error {
 	if err := b.innerConfig.Set(BConfig.RunMode+"::"+key, val); err != nil {
 		return err
