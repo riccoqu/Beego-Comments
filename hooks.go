@@ -19,8 +19,6 @@ func registerMime() error {
 	}
 	return nil
 }
-
-// register default error http handlers, 404,401,403,500 and 503.
 // 设置不同错误的默认回调方法
 func registerDefaultErrorHandler() error {
 	m := map[string]func(http.ResponseWriter, *http.Request){
@@ -42,7 +40,7 @@ func registerDefaultErrorHandler() error {
 	}
 	return nil
 }
-
+//判断是否需要初始化GlobalSessions(Session管理器)
 func registerSession() error {
 	// BConfig(位于 config.go内的全局变量)
 	if BConfig.WebConfig.Session.SessionOn {
@@ -83,7 +81,7 @@ func registerTemplate() error {
 	}
 	return nil
 }
-
+//判断是否需要加入文档的路由
 func registerDocs() error {
 	if BConfig.WebConfig.EnableDocs {
 		Get("/docs", serverDocs)
@@ -91,7 +89,7 @@ func registerDocs() error {
 	}
 	return nil
 }
-
+// 判断是否需要启动进程内监控服务器
 func registerAdmin() error {
 	if BConfig.Listen.EnableAdmin {
 		go beeAdminApp.Run()
