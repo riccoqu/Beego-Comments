@@ -29,11 +29,16 @@ import (
 	"time"
 )
 
-// BeegoOutput does work for sending response header.
+/*
+ * Output 是针对 Response 的封装，里面提供了很多方便的方法
+ * Output可以理解为服务器对客户端输出的封装
+ * 具体可见 http://beego.me/docs/module/context.md
+ */
+
 type BeegoOutput struct {
-	Context    *Context
-	Status     int
-	EnableGzip bool
+	Context    *Context	//上下文
+	Status     int		//状态
+	EnableGzip bool		//Gzip压缩
 }
 
 // NewOutput returns new BeegoOutput.

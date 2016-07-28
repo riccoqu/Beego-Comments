@@ -53,12 +53,14 @@ func NewContext() *Context {
 type Context struct {
 	Input          *BeegoInput
 	Output         *BeegoOutput
-	Request        *http.Request
-	ResponseWriter *Response
-	_xsrfToken     string
+	Request        *http.Request	// Http的请求
+	ResponseWriter *Response	// 封装了 http.ResponseWriter
+	_xsrfToken     string		// CSRF的 TOKEN
 }
 
-// Reset init Context, BeegoInput and BeegoOutput
+// 重置 ctx.Input ctx.Output
+// 使参数 rw、r与当前的Context实例相关联
+// 设置好上下文,结构体内的其他变量都赋默认值
 func (ctx *Context) Reset(rw http.ResponseWriter, r *http.Request) {
 	ctx.Request = r
 	if ctx.ResponseWriter == nil {
@@ -71,6 +73,7 @@ func (ctx *Context) Reset(rw http.ResponseWriter, r *http.Request) {
 
 // Redirect does redirection to localurl with http header status code.
 // It sends http response header directly.
+//发送重定向消息和 http头的状态码
 func (ctx *Context) Redirect(status int, localurl string) {
 	ctx.Output.Header("Location", localurl)
 	ctx.ResponseWriter.WriteHeader(status)
@@ -78,12 +81,14 @@ func (ctx *Context) Redirect(status int, localurl string) {
 
 // Abort stops this request.
 // if beego.ErrorMaps exists, panic body.
+// 当beego因为错误而退出时,发送panic
 func (ctx *Context) Abort(status int, body string) {
 	panic(body)
 }
 
 // WriteString Write string to response body.
 // it sends response body.
+//发送响应体
 func (ctx *Context) WriteString(content string) {
 	ctx.ResponseWriter.Write([]byte(content))
 }
@@ -176,11 +181,11 @@ func (ctx *Context) CheckXSRFCookie() bool {
 //Response is a wrapper for the http.ResponseWriter
 //started set to true if response was written to then don't execute other handler
 type Response struct {
-	http.ResponseWriter
-	Started bool
-	Status  int
+	http.ResponseWriter	// HTTP的应答
+	Started bool		// 当 Started为 true时表示响应体已经被发送出去
+	Status  int		// 状态
 }
-
+//重置当前状态
 func (r *Response) reset(rw http.ResponseWriter) {
 	r.ResponseWriter = rw
 	r.Status = 0
@@ -190,14 +195,12 @@ func (r *Response) reset(rw http.ResponseWriter) {
 // Write writes the data to the connection as part of an HTTP reply,
 // and sets `started` to true.
 // started means the response has sent out.
+//发送 参数p内容的响应体,并设置 Started标志位
 func (r *Response) Write(p []byte) (int, error) {
 	r.Started = true
 	return r.ResponseWriter.Write(p)
 }
-
-// Copy writes the data to the connection as part of an HTTP reply,
-// and sets `started` to true.
-// started means the response has sent out.
+//与上面方法一样
 func (r *Response) Copy(buf *bytes.Buffer) (int64, error) {
 	r.Started = true
 	return io.Copy(r.ResponseWriter, buf)
@@ -205,6 +208,7 @@ func (r *Response) Copy(buf *bytes.Buffer) (int64, error) {
 
 // WriteHeader sends an HTTP response header with status code,
 // and sets `started` to true.
+//发送 以参数code为状态码返回HTTP头,并设置 Started标志位
 func (r *Response) WriteHeader(code int) {
 	if r.Status > 0 {
 		//prevent multiple response.WriteHeader calls

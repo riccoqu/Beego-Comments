@@ -37,8 +37,11 @@ var (
 	maxParam         = 50
 )
 
-// BeegoInput operates the http request header, data, cookie and body.
-// it also contains router params and current session.
+/*
+ * Input 对象是针对 request 的封装，里面通过 reqeust 实现很多方便的方法
+ * Input可以理解为服务器对于客户端输入的封装
+ * 具体可见 http://beego.me/docs/module/context.md
+ */
 type BeegoInput struct {
 	Context     *Context
 	CruSession  session.Store
