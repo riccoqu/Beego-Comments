@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/*
+ * 此文件是支持 Beego进程内监控的
+ * 可见 http://beego.me/docs/advantage/monitor.md
+ */
 package beego
 
 import (
@@ -396,8 +400,13 @@ func (admin *adminApp) Route(pattern string, f http.HandlerFunc) {
 	admin.routers[pattern] = f
 }
 
-// Run adminApp http server.
-// Its addr is defined in configuration file as adminhttpaddr and adminhttpport.
+/*
+ * 此函数用于启动一个 Beego进程内监控的服务器,可以通过配置的地址和端口登陆监控后台
+ * 要开启进程内监控应该在配置文件内设置
+ * 	EnableAdmin = true
+ * 	AdminAddr = 127.0.0.1
+ * 	AdminPort = 12580
+ */
 func (admin *adminApp) Run() {
 	if len(toolbox.AdminTaskList) > 0 {
 		toolbox.StartTask()
