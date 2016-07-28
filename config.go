@@ -120,6 +120,7 @@ var (
 )
 // 初始化函数,主要为了初始化 BConfig变量 然后再进行解析
 // 这样当 init()函数执行完成后 BConfig变量的准备工作完成
+// 因为配置项的处理写在 init()函数中,所以在 beego.Run()中无法看到初始化配置项相关的代码
 func init() {
 	AppPath, _ = filepath.Abs(filepath.Dir(os.Args[0]))
 
