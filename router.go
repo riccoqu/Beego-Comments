@@ -48,7 +48,7 @@ const (
 )
 
 var (
-	// HTTPMETHOD list the supported http methods.
+	// HTTP模块支持的方法
 	HTTPMETHOD = map[string]string{
 		"GET":     "GET",
 		"POST":    "POST",
@@ -110,15 +110,15 @@ type controllerInfo struct {
 	routerType     int
 }
 
-// ControllerRegister containers registered router rules, controller handlers and filters.
+// Controller包含已经注册的路由规则，handle函数和文件过滤
 type ControllerRegister struct {
-	routers      map[string]*Tree
-	enableFilter bool
-	filters      map[int][]*FilterRouter
-	pool         sync.Pool
+	routers      map[string]*Tree		//路由表
+	enableFilter bool			//标志位,是否有过滤器
+	filters      map[int][]*FilterRouter	//文件过滤
+	pool         sync.Pool			//对象池
 }
 
-// NewControllerRegister returns a new ControllerRegister.
+// 返回一个 ControllerRegister实例
 func NewControllerRegister() *ControllerRegister {
 	cr := &ControllerRegister{
 		routers: make(map[string]*Tree),
@@ -320,6 +320,9 @@ func (p *ControllerRegister) Any(pattern string, f FilterFunc) {
 //    AddMethod("get","/api/:id", func(ctx *context.Context){
 //          ctx.Output.Body("hello world")
 //    })
+/*
+ * AddMethod向 ControllerRegister添加特定的方法和路由规则
+ */
 func (p *ControllerRegister) AddMethod(method, pattern string, f FilterFunc) {
 	method = strings.ToUpper(method)
 	if _, ok := HTTPMETHOD[method]; method != "*" && !ok {
@@ -596,47 +599,52 @@ func (p *ControllerRegister) execFilter(context *beecontext.Context, pos int, ur
 	return false
 }
 
-// Implement http.Handler interface.
+// 实现了 http.Handler接口
+// 这个方法很重要,在 app.go文件中启动 app.Server.ServeHttp()后,接收到的 http请求都会调用此函数
 func (p *ControllerRegister) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 	var (
 		runRouter  reflect.Type
-		findRouter bool
+		findRouter bool//是否找到路由
 		runMethod  string
 		routerInfo *controllerInfo
 	)
-	context := p.pool.Get().(*beecontext.Context)
+	context := p.pool.Get().(*beecontext.Context)//beecontext就是 "github.com/astaxie/beego/context"包的别名
 	context.Reset(rw, r)
 
 	defer p.pool.Put(context)
 	defer p.recoverPanic(context)
 
 	context.Output.EnableGzip = BConfig.EnableGzip
-
+	// 如果是开发模式则返回服务器名
 	if BConfig.RunMode == DEV {
 		context.Output.Header("Server", BConfig.ServerName)
 	}
 
 	var urlPath string
+	// 路由大小写敏感
 	if !BConfig.RouterCaseSensitive {
 		urlPath = strings.ToLower(r.URL.Path)
 	} else {
 		urlPath = r.URL.Path
 	}
 
-	// filter wrong http method
+	// 检查请求中的方法是否支持
 	if _, ok := HTTPMETHOD[r.Method]; !ok {
+		// 不支持则返回405状态
 		http.Error(rw, "Method Not Allowed", 405)
+		// 记录
 		goto Admin
 	}
 
-	// filter for static file
+	// 检查对应 url的静态文件过滤器
 	if p.execFilter(context, BeforeStatic, urlPath) {
 		goto Admin
 	}
-
+	// 查找静态路由
 	serverStaticRouter(context)
 	if context.ResponseWriter.Started {
+		//路由找到并且发送了相应则修改 findRouter标志位并且跳转到记录
 		findRouter = true
 		goto Admin
 	}
@@ -663,7 +671,7 @@ func (p *ControllerRegister) ServeHTTP(rw http.ResponseWriter, r *http.Request) 
 			}
 		}()
 	}
-
+	//检查 Router
 	if p.execFilter(context, BeforeRouter, urlPath) {
 		goto Admin
 	}
@@ -685,14 +693,14 @@ func (p *ControllerRegister) ServeHTTP(rw http.ResponseWriter, r *http.Request) 
 
 	}
 
-	//if no matches to url, throw a not found exception
+	// 如果程序执行到这里还没有找到路由则抛出一个异常并跳转到记录
 	if !findRouter {
 		exception("404", context)
 		goto Admin
 	}
 
 	if findRouter {
-		//execute middleware filters
+		//执行中间件的过滤器
 		if p.execFilter(context, BeforeExec, urlPath) {
 			goto Admin
 		}
@@ -801,6 +809,9 @@ func (p *ControllerRegister) ServeHTTP(rw http.ResponseWriter, r *http.Request) 
 
 	p.execFilter(context, FinishRouter, urlPath)
 
+/*
+ * 记录此次请求的一些信息
+ */
 Admin:
 	timeDur := time.Since(startTime)
 	//admin module record QPS
@@ -835,7 +846,7 @@ Admin:
 		context.ResponseWriter.WriteHeader(context.Output.Status)
 	}
 }
-
+// 恢复 Panic,只在 router.go:616 中被调用
 func (p *ControllerRegister) recoverPanic(context *beecontext.Context) {
 	if err := recover(); err != nil {
 		if err == ErrAbort {
@@ -868,6 +879,7 @@ func (p *ControllerRegister) recoverPanic(context *beecontext.Context) {
 	}
 }
 
+//将 params拼接成 URL
 func toURL(params map[string]string) string {
 	if len(params) == 0 {
 		return ""
