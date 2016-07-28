@@ -24,10 +24,10 @@ import (
 const (
 	// VERSION represent beego web framework version.
 	VERSION = "1.6.1"
-
-	// DEV is for develop
+	// 定义程序运行的两种模式
+	// 开发模式
 	DEV = "dev"
-	// PROD is for production
+	// 生产使用模式
 	PROD = "prod"
 )
 
