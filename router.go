@@ -100,7 +100,7 @@ func (l *logFilter) Filter(ctx *beecontext.Context) bool {
 func ExceptMethodAppend(action string) {
 	exceptMethod = append(exceptMethod, action)
 }
-
+// 保存用户自定义的 Controller的结构体
 type controllerInfo struct {
 	pattern        string
 	controllerType reflect.Type
@@ -111,6 +111,7 @@ type controllerInfo struct {
 }
 
 // Controller包含已经注册的路由规则，handle函数和文件过滤
+// Controller是一个注册器,外部调用的API例如 beego.Router()就是向它注册路由
 type ControllerRegister struct {
 	routers      map[string]*Tree		//路由表
 	enableFilter bool			//标志位,是否有过滤器
@@ -165,7 +166,7 @@ func (p *ControllerRegister) Add(pattern string, c ControllerInterface, mappingM
 			}
 		}
 	}
-
+	//将 ControllerInterface转换成 ControllerInfo
 	route := &controllerInfo{}
 	route.pattern = pattern
 	route.methods = methods
