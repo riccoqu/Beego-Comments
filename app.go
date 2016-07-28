@@ -33,24 +33,25 @@ var (
 )
 
 func init() {
-	// create beego application
+	// 创建一个 beego应用程序实例
 	BeeApp = NewApp()
 }
 
 // App defines beego application with a new PatternServeMux.
+// Handlers实现了 http.Handler接口 在 router.go:600
 type App struct {
 	Handlers *ControllerRegister
 	Server   *http.Server
 }
 
-// NewApp returns a new beego application.
+// 创建一个 App的实例
 func NewApp() *App {
 	cr := NewControllerRegister()
 	app := &App{Handlers: cr, Server: &http.Server{}}
 	return app
 }
 
-// beego启动函数
+// beego程序启动函数
 func (app *App) Run() {
 	addr := BConfig.Listen.HTTPAddr
 
@@ -64,7 +65,7 @@ func (app *App) Run() {
 		endRunning = make(chan bool, 1)
 	)
 
-	// run cgi server
+	// 运行 CGI服务器
 	if BConfig.Listen.EnableFcgi {
 		if BConfig.Listen.EnableStdIo {
 			if err = fcgi.Serve(nil, app.Handlers); err == nil { // standard I/O
@@ -96,10 +97,11 @@ func (app *App) Run() {
 	app.Server.ReadTimeout = time.Duration(BConfig.Listen.ServerTimeOut) * time.Second
 	app.Server.WriteTimeout = time.Duration(BConfig.Listen.ServerTimeOut) * time.Second
 
-	// run graceful mode
+	// 运行热编译模式
 	if BConfig.Listen.Graceful {
 		httpsAddr := BConfig.Listen.HTTPSAddr
 		app.Server.Addr = httpsAddr
+		// 热编译模式下的 HTTPS
 		if BConfig.Listen.EnableHTTPS {
 			go func() {
 				time.Sleep(20 * time.Microsecond)
@@ -110,6 +112,7 @@ func (app *App) Run() {
 				server := grace.NewServer(httpsAddr, app.Handlers)
 				server.Server.ReadTimeout = app.Server.ReadTimeout
 				server.Server.WriteTimeout = app.Server.WriteTimeout
+				//执行 HTTPS的 ListenAndServerTLS()
 				if err := server.ListenAndServeTLS(BConfig.Listen.HTTPSCertFile, BConfig.Listen.HTTPSKeyFile); err != nil {
 					BeeLogger.Critical("ListenAndServeTLS: ", err, fmt.Sprintf("%d", os.Getpid()))
 					time.Sleep(100 * time.Microsecond)
@@ -117,6 +120,7 @@ func (app *App) Run() {
 				}
 			}()
 		}
+		// 热编译模式下的 HTTP
 		if BConfig.Listen.EnableHTTP {
 			go func() {
 				server := grace.NewServer(addr, app.Handlers)
@@ -125,6 +129,7 @@ func (app *App) Run() {
 				if BConfig.Listen.ListenTCP4 {
 					server.Network = "tcp4"
 				}
+				// 执行 HTTP的 ListenAndServer()
 				if err := server.ListenAndServe(); err != nil {
 					BeeLogger.Critical("ListenAndServe: ", err, fmt.Sprintf("%d", os.Getpid()))
 					time.Sleep(100 * time.Microsecond)
@@ -136,8 +141,9 @@ func (app *App) Run() {
 		return
 	}
 
-	// run normal mode
+	// 运行普通模式
 	app.Server.Addr = addr
+	// HTTPS
 	if BConfig.Listen.EnableHTTPS {
 		go func() {
 			time.Sleep(20 * time.Microsecond)
@@ -145,6 +151,7 @@ func (app *App) Run() {
 				app.Server.Addr = fmt.Sprintf("%s:%d", BConfig.Listen.HTTPSAddr, BConfig.Listen.HTTPSPort)
 			}
 			BeeLogger.Info("https server Running on %s", app.Server.Addr)
+			// 运行 ListenAndServeTLS
 			if err := app.Server.ListenAndServeTLS(BConfig.Listen.HTTPSCertFile, BConfig.Listen.HTTPSKeyFile); err != nil {
 				BeeLogger.Critical("ListenAndServeTLS: ", err)
 				time.Sleep(100 * time.Microsecond)
@@ -152,6 +159,7 @@ func (app *App) Run() {
 			}
 		}()
 	}
+	// HTTP
 	if BConfig.Listen.EnableHTTP {
 		go func() {
 			app.Server.Addr = addr
@@ -171,6 +179,7 @@ func (app *App) Run() {
 					return
 				}
 			} else {
+				// 运行 ListenAndServe()
 				if err := app.Server.ListenAndServe(); err != nil {
 					BeeLogger.Critical("ListenAndServe: ", err)
 					time.Sleep(100 * time.Microsecond)
