@@ -32,7 +32,7 @@ var (
 // wildcard stores params
 // leaves store the endpoint information
 type Tree struct {
-	//prefix set for static router
+	//静态路由设置的前缀
 	prefix string
 	//search fix route first
 	fixrouters []*Tree
