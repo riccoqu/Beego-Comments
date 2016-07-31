@@ -32,13 +32,16 @@ var (
 // wildcard stores params
 // leaves store the endpoint information
 type Tree struct {
-	//静态路由设置的前缀
+	//前缀
 	prefix string
 	//search fix route first
+	//不带正则的路由
 	fixrouters []*Tree
 	//if set, failure to match fixrouters search then search wildcard
+	//通配符 如果设置的话在查找 fixrouters失败时会来查找 wildcard
 	wildcard *Tree
 	//if set, failure to match wildcard search
+	//叶子　如果设置的话,在查找 wildcard失败后会查找 leaves,里面保存了一些正则需要的信息
 	leaves []*leafInfo
 }
 
@@ -209,6 +212,7 @@ func (t *Tree) AddRouter(pattern string, runObject interface{}) {
 func (t *Tree) addseg(segments []string, route interface{}, wildcards []string, reg string) {
 	if len(segments) == 0 {
 		if reg != "" {
+			//,添加 leaves节点,并给 leaves添加正则 规则
 			t.leaves = append(t.leaves, &leafInfo{runObject: route, wildcards: wildcards, regexps: regexp.MustCompile("^" + reg + "$")})
 		} else {
 			t.leaves = append(t.leaves, &leafInfo{runObject: route, wildcards: wildcards})
@@ -218,12 +222,16 @@ func (t *Tree) addseg(segments []string, route interface{}, wildcards []string, 
 		iswild, params, regexpStr := splitSegment(seg)
 		// if it's ? meaning can igone this, so add one more rule for it
 		if len(params) > 0 && params[0] == ":" {
+			//当　params[0]为':'时,代表参数为空,开始解析下一个
 			t.addseg(segments[1:], route, wildcards, reg)
 			params = params[1:]
 		}
 		//Rule: /login/*/access match /login/2009/11/access
 		//if already has *, and when loop the access, should as a regexpStr
+		//全匹配方式,可参考　http://beego.me/docs/mvc/controller/router.md 正则路由->全匹配方式
+		// utils.InSlice()检查":solat"是否在wildcards中
 		if !iswild && utils.InSlice(":splat", wildcards) {
+			//如果使用了全匹配方式则继续使用正则解析
 			iswild = true
 			regexpStr = seg
 		}
@@ -231,6 +239,7 @@ func (t *Tree) addseg(segments []string, route interface{}, wildcards []string, 
 		if seg == "*" && len(wildcards) > 0 && reg == "" {
 			regexpStr = "(.+)"
 		}
+		//包含有正则表达式　
 		if iswild {
 			if t.wildcard == nil {
 				t.wildcard = NewTree()
@@ -381,6 +390,7 @@ type leafInfo struct {
 	wildcards []string
 
 	// if the leaf is regexp
+	//正则对象
 	regexps *regexp.Regexp
 
 	runObject interface{}
@@ -452,6 +462,7 @@ func (leaf *leafInfo) match(wildcardValues []string, ctx *context.Context) (ok b
 // "/admin" -> ["admin"]
 // "/admin/" -> ["admin"]
 // "/admin/users" -> ["admin", "users"]
+//分割路径,返回一个切片,不包含'\'
 func splitPath(key string) []string {
 	key = strings.Trim(key, "/ ")
 	if key == "" {
@@ -471,6 +482,10 @@ func splitPath(key string) []string {
 // "cms_:id(.+)_:page.html" -> true, [:id :page], cms_(.+)_(.+).html
 // "*" -> true, [:splat], ""
 // "*.*" -> true,[. :path :ext], ""      . meaning separator
+//正则路由,用于对正则的 Segment进行解析
+//当 key中包含正则 返回true，否则返回false
+//返回值第二个为不同的参数
+//第三个为正则的规则
 func splitSegment(key string) (bool, []string, string) {
 	if strings.HasPrefix(key, "*") {
 		if key == "*.*" {
