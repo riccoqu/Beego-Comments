@@ -42,9 +42,9 @@ const (
 )
 
 const (
-	routerTypeBeego = iota
-	routerTypeRESTFul
-	routerTypeHandler
+	routerTypeBeego = iota //一般路由
+	routerTypeRESTFul      //RESTFul路由
+	routerTypeHandler      //Handler路由
 )
 
 var (
@@ -142,22 +142,25 @@ func NewControllerRegister() *ControllerRegister {
 //	Add("/api",&RestController{},"get,post:ApiFunc"
 //	Add("/simple",&SimpleController{},"get:GetFunc;post:PostFunc")
 func (p *ControllerRegister) Add(pattern string, c ControllerInterface, mappingMethods ...string) {
-	reflectVal := reflect.ValueOf(c)
-	t := reflect.Indirect(reflectVal).Type()
+	reflectVal := reflect.ValueOf(c)	//反射获得 value
+	t := reflect.Indirect(reflectVal).Type()//反射获得 type
 	methods := make(map[string]string)
 	if len(mappingMethods) > 0 {
-		semi := strings.Split(mappingMethods[0], ";")
+		semi := strings.Split(mappingMethods[0], ";")//切分出每个以';'分隔的自定义方法和对应的函数
 		for _, v := range semi {
-			colon := strings.Split(v, ":")
+			colon := strings.Split(v, ":")//切分出以':'分隔的方法名和对应的函数,colon[1]为处理的函数名
 			if len(colon) != 2 {
 				panic("method mapping format is invalid")
 			}
-			comma := strings.Split(colon[0], ",")
+			comma := strings.Split(colon[0], ",")//切分出以','分隔的方法名, comma包含了当前需要注册的所有方法名
 			for _, m := range comma {
 				if _, ok := HTTPMETHOD[strings.ToUpper(m)]; m == "*" || ok {
+					//如果方法名为通配符'*'或者在支持的方法列表中.并使用反射包中的方法获得一个绑定对应函数的　Value类型
+					//如果返回的值有效,就将当前方法加入到 methods中
 					if val := reflectVal.MethodByName(colon[1]); val.IsValid() {
 						methods[strings.ToUpper(m)] = colon[1]
 					} else {
+						//不支持方法时报错
 						panic("'" + colon[1] + "' method doesn't exist in the controller " + t.Name())
 					}
 				} else {
@@ -166,23 +169,27 @@ func (p *ControllerRegister) Add(pattern string, c ControllerInterface, mappingM
 			}
 		}
 	}
-	//将 ControllerInterface转换成 ControllerInfo
+	//添加 ControllerInfo类型来保存此项路由规则
 	route := &controllerInfo{}
 	route.pattern = pattern
 	route.methods = methods
 	route.routerType = routerTypeBeego
 	route.controllerType = t
+	//当传入的方法名为空时,给当前模式加入所有支持的方法
 	if len(methods) == 0 {
 		for _, m := range HTTPMETHOD {
 			p.addToRouter(m, pattern, route)
 		}
 	} else {
+		//方法名不为空时,判断是否含有通配符 "*"
 		for k := range methods {
 			if k == "*" {
 				for _, m := range HTTPMETHOD {
+					//含有通配符,加入所有方法
 					p.addToRouter(m, pattern, route)
 				}
 			} else {
+				//只加入指定的方法
 				p.addToRouter(k, pattern, route)
 			}
 		}
@@ -194,10 +201,13 @@ func (p *ControllerRegister) addToRouter(method, pattern string, r *controllerIn
 		pattern = strings.ToLower(pattern)
 	}
 	if t, ok := p.routers[method]; ok {
+		//如果方法对应的路由树存在就直接添加
 		t.AddRouter(pattern, r)
 	} else {
+		//方法不存在这新创建一个路由树
 		t := NewTree()
 		t.AddRouter(pattern, r)
+		//设定新方法的路由树
 		p.routers[method] = t
 	}
 }
@@ -335,10 +345,12 @@ func (p *ControllerRegister) AddMethod(method, pattern string, f FilterFunc) {
 	route.runFunction = f
 	methods := make(map[string]string)
 	if method == "*" {
+		//遇到通配符 "*"时,添加所有的方法
 		for _, val := range HTTPMETHOD {
 			methods[val] = val
 		}
 	} else {
+		//　不是通配符只添加制定的方法
 		methods[method] = method
 	}
 	route.methods = methods
@@ -354,6 +366,7 @@ func (p *ControllerRegister) AddMethod(method, pattern string, f FilterFunc) {
 }
 
 // Handler add user defined Handler
+//添加默认路由
 func (p *ControllerRegister) Handler(pattern string, h http.Handler, options ...interface{}) {
 	route := &controllerInfo{}
 	route.pattern = pattern
@@ -374,6 +387,7 @@ func (p *ControllerRegister) Handler(pattern string, h http.Handler, options ...
 // MainController has method List and Page.
 // visit the url /main/list to execute List function
 // /main/page to execute Page function.
+//添加自动路由
 func (p *ControllerRegister) AddAuto(c ControllerInterface) {
 	p.AddAutoPrefix("/", c)
 }
@@ -383,6 +397,7 @@ func (p *ControllerRegister) AddAuto(c ControllerInterface) {
 // MainController has method List and Page.
 // visit the url /admin/main/list to execute List function
 // /admin/main/page to execute Page function.
+//添加自动路由
 func (p *ControllerRegister) AddAutoPrefix(prefix string, c ControllerInterface) {
 	reflectVal := reflect.ValueOf(c)
 	rt := reflectVal.Type()
@@ -676,7 +691,7 @@ func (p *ControllerRegister) ServeHTTP(rw http.ResponseWriter, r *http.Request) 
 	if p.execFilter(context, BeforeRouter, urlPath) {
 		goto Admin
 	}
-
+	//开始查找路由的过程
 	if !findRouter {
 		httpMethod := r.Method
 		if t, ok := p.routers[httpMethod]; ok {
@@ -699,7 +714,7 @@ func (p *ControllerRegister) ServeHTTP(rw http.ResponseWriter, r *http.Request) 
 		exception("404", context)
 		goto Admin
 	}
-
+	//找到了路由,进行动作
 	if findRouter {
 		//执行中间件的过滤器
 		if p.execFilter(context, BeforeExec, urlPath) {
@@ -707,6 +722,7 @@ func (p *ControllerRegister) ServeHTTP(rw http.ResponseWriter, r *http.Request) 
 		}
 		isRunnable := false
 		if routerInfo != nil {
+			//RESTFul路由,执行对应的方法
 			if routerInfo.routerType == routerTypeRESTFul {
 				if _, ok := routerInfo.methods[r.Method]; ok {
 					isRunnable = true
@@ -716,9 +732,11 @@ func (p *ControllerRegister) ServeHTTP(rw http.ResponseWriter, r *http.Request) 
 					goto Admin
 				}
 			} else if routerInfo.routerType == routerTypeHandler {
+				//Handler类型的路由
 				isRunnable = true
 				routerInfo.handler.ServeHTTP(rw, r)
 			} else {
+				//其他类型的路由
 				runRouter = routerInfo.controllerType
 				method := r.Method
 				if r.Method == "POST" && context.Input.Query("_method") == "PUT" {
