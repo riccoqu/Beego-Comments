@@ -32,8 +32,9 @@ type FilterRouter struct {
 // ValidRouter checks if the current request is matched by this filter.
 // If the request is matched, the values of the URL parameters defined
 // by the filter pattern are also returned.
+//判断当前的请求是否匹配上此 Filter,返回 bool类型
 func (f *FilterRouter) ValidRouter(url string, ctx *context.Context) bool {
-	isOk := f.tree.Match(url, ctx)
+	isOk := f.tree.Match(url, ctx)//Match()返回的是 Interface类型,所以需要使用断言
 	if isOk != nil {
 		if b, ok := isOk.(bool); ok {
 			return b
