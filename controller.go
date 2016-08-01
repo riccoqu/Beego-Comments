@@ -55,7 +55,7 @@ type ControllerComments struct {
 
 // Controller defines some basic http request handler operations, such as
 // http context, template and view, session and xsrf.
-//当用户需要自定义的 Controller是应该包含 Controller,因为 Controller实现了 Controller实现了 ControllerInterface接口
+//当用户需要自定义的 Controller是应该包含 Controller,因为 Controller实现了 ControllerInterface接口
 //所以用户的自定义控制器可以被传入到 Router()函数中
 type Controller struct {
 	// context data
