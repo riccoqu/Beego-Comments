@@ -38,10 +38,10 @@ type Tree struct {
 	//不带正则的路由
 	fixrouters []*Tree
 	//if set, failure to match fixrouters search then search wildcard
-	//通配符 如果设置的话在查找 fixrouters失败时会来查找 wildcard
+	//通配符 如果设置的并且查找 fixrouters失败时会来查找 wildcard
 	wildcard *Tree
 	//if set, failure to match wildcard search
-	//叶子　如果设置的话,在查找 wildcard失败后会查找 leaves,里面保存了一些正则需要的信息
+	//叶子　如果设置并且查找 wildcard失败后会查找 leaves,里面保存了一些正则需要的信息
 	leaves []*leafInfo
 }
 
@@ -212,7 +212,7 @@ func (t *Tree) AddRouter(pattern string, runObject interface{}) {
 func (t *Tree) addseg(segments []string, route interface{}, wildcards []string, reg string) {
 	if len(segments) == 0 {
 		if reg != "" {
-			//,添加 leaves节点,并给 leaves添加正则 规则
+			//添加 leaves节点,并给 leaves添加正则规则
 			t.leaves = append(t.leaves, &leafInfo{runObject: route, wildcards: wildcards, regexps: regexp.MustCompile("^" + reg + "$")})
 		} else {
 			t.leaves = append(t.leaves, &leafInfo{runObject: route, wildcards: wildcards})
@@ -228,7 +228,7 @@ func (t *Tree) addseg(segments []string, route interface{}, wildcards []string, 
 		}
 		//Rule: /login/*/access match /login/2009/11/access
 		//if already has *, and when loop the access, should as a regexpStr
-		//全匹配方式,可参考　http://beego.me/docs/mvc/controller/router.md 正则路由->全匹配方式
+		//全匹配方式,可参考　http://beego.me/docs/mvc/controller/router.md 的正则路由->全匹配方式
 		// utils.InSlice()检查":solat"是否在wildcards中
 		if !iswild && utils.InSlice(":splat", wildcards) {
 			//如果使用了全匹配方式则继续使用正则解析
@@ -292,6 +292,7 @@ func (t *Tree) addseg(segments []string, route interface{}, wildcards []string, 
 }
 
 // Match router to runObject & params
+//匹配路由
 func (t *Tree) Match(pattern string, ctx *context.Context) (runObject interface{}) {
 	if len(pattern) == 0 || pattern[0] != '/' {
 		return nil
@@ -392,7 +393,7 @@ type leafInfo struct {
 	// if the leaf is regexp
 	//正则对象
 	regexps *regexp.Regexp
-
+	//一般保存得到的ControllerInfo对象,在处理请求时会返回该对象并调用处理方法
 	runObject interface{}
 }
 
