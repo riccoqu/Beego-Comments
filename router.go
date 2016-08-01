@@ -115,7 +115,7 @@ type controllerInfo struct {
 type ControllerRegister struct {
 	routers      map[string]*Tree		//路由表
 	enableFilter bool			//标志位,是否有过滤器
-	filters      map[int][]*FilterRouter	//文件过滤
+	filters      map[int][]*FilterRouter	//文件过滤,int为本文件37行定义的几个变量
 	pool         sync.Pool			//对象池
 }
 
@@ -596,6 +596,7 @@ func (p *ControllerRegister) geturl(t *Tree, url, controllName, methodName strin
 	return false, ""
 }
 
+//寻找对应路由的 filter,如果找到就执行对应的回调函数
 func (p *ControllerRegister) execFilter(context *beecontext.Context, pos int, urlPath string) (started bool) {
 	if p.enableFilter {
 		if l, ok := p.filters[pos]; ok {
@@ -604,6 +605,7 @@ func (p *ControllerRegister) execFilter(context *beecontext.Context, pos int, ur
 					return true
 				}
 				if ok := filterR.ValidRouter(urlPath, context); ok {
+					//如果根据路由找到了 Filter,执行对应的 filterFunc()
 					filterR.filterFunc(context)
 				}
 				if filterR.returnOnOutput && context.ResponseWriter.Started {
@@ -653,18 +655,18 @@ func (p *ControllerRegister) ServeHTTP(rw http.ResponseWriter, r *http.Request) 
 		goto Admin
 	}
 
-	// 检查对应 url的静态文件过滤器
+	// 检查对应 url的的 filter
 	if p.execFilter(context, BeforeStatic, urlPath) {
 		goto Admin
 	}
-	// 查找静态路由
-	serverStaticRouter(context)
+	// 查找静态文件
+	serverStaticRouter(context)//只对于 "GET"和"HEAD"请求方法有效
 	if context.ResponseWriter.Started {
-		//路由找到并且发送了相应则修改 findRouter标志位并且跳转到记录
+		//路由找到并且发送了相应的文件则修改 findRouter标志位并且跳转到记录
 		findRouter = true
 		goto Admin
 	}
-
+	//对于非 "GET"和"HEAD"的请求方法开始解析
 	if r.Method != "GET" && r.Method != "HEAD" {
 		if BConfig.CopyRequestBody && !context.Input.IsUpload() {
 			context.Input.CopyBody(BConfig.MaxMemory)
@@ -672,10 +674,10 @@ func (p *ControllerRegister) ServeHTTP(rw http.ResponseWriter, r *http.Request) 
 		context.Input.ParseFormOrMulitForm(BConfig.MaxMemory)
 	}
 
-	// session init
+	// session初始化
 	if BConfig.WebConfig.Session.SessionOn {
 		var err error
-		context.Input.CruSession, err = GlobalSessions.SessionStart(rw, r)
+		context.Input.CruSession, err = GlobalSessions.SessionStart(rw, r)//从Session池获取
 		if err != nil {
 			Error(err)
 			exception("503", context)
@@ -683,23 +685,26 @@ func (p *ControllerRegister) ServeHTTP(rw http.ResponseWriter, r *http.Request) 
 		}
 		defer func() {
 			if context.Input.CruSession != nil {
-				context.Input.CruSession.SessionRelease(rw)
+				context.Input.CruSession.SessionRelease(rw)//从Session释放
 			}
 		}()
 	}
-	//检查 Router
+	//检查 Filter,与659行相似,但是会查找不同的 filters数组
 	if p.execFilter(context, BeforeRouter, urlPath) {
 		goto Admin
 	}
-	//开始查找路由的过程
+	//前面的静态文件未找到,开始查找路由的过程
 	if !findRouter {
 		httpMethod := r.Method
 		if t, ok := p.routers[httpMethod]; ok {
-			runObject := t.Match(urlPath, context)
+			//这里通过 p.routers[httpMethod]进入路由树
+			runObject := t.Match(urlPath, context)//找到路由树中对应的 runObject变量
 			if r, ok := runObject.(*controllerInfo); ok {
+				//将 runObject变量还原回 controllerInfo结构体
 				routerInfo = r
 				findRouter = true
 				if splat := context.Input.Param(":splat"); splat != "" {
+					//如果为全匹配方式,再进行分割
 					for k, v := range strings.Split(splat, "/") {
 						context.Input.SetParam(strconv.Itoa(k), v)
 					}
@@ -716,17 +721,18 @@ func (p *ControllerRegister) ServeHTTP(rw http.ResponseWriter, r *http.Request) 
 	}
 	//找到了路由,进行动作
 	if findRouter {
-		//执行中间件的过滤器
+		//查找对应的 Filter
 		if p.execFilter(context, BeforeExec, urlPath) {
 			goto Admin
 		}
 		isRunnable := false
+		//找到了 routerInfo
 		if routerInfo != nil {
 			//RESTFul路由,执行对应的方法
 			if routerInfo.routerType == routerTypeRESTFul {
 				if _, ok := routerInfo.methods[r.Method]; ok {
 					isRunnable = true
-					routerInfo.runFunction(context)
+					routerInfo.runFunction(context)//执行对应的回调方法
 				} else {
 					exception("405", context)
 					goto Admin
@@ -734,9 +740,9 @@ func (p *ControllerRegister) ServeHTTP(rw http.ResponseWriter, r *http.Request) 
 			} else if routerInfo.routerType == routerTypeHandler {
 				//Handler类型的路由
 				isRunnable = true
-				routerInfo.handler.ServeHTTP(rw, r)
+				routerInfo.handler.ServeHTTP(rw, r)//执行　Handler类型的路由回调方法
 			} else {
-				//其他类型的路由
+				//其他类型的请求
 				runRouter = routerInfo.controllerType
 				method := r.Method
 				if r.Method == "POST" && context.Input.Query("_method") == "PUT" {
@@ -746,8 +752,10 @@ func (p *ControllerRegister) ServeHTTP(rw http.ResponseWriter, r *http.Request) 
 					method = "DELETE"
 				}
 				if m, ok := routerInfo.methods[method]; ok {
+					//如果找到注册过的方法,则赋值
 					runMethod = m
 				} else if m, ok = routerInfo.methods["*"]; ok {
+					//如果支持通配符'*',则赋值
 					runMethod = m
 				} else {
 					runMethod = method
@@ -756,18 +764,21 @@ func (p *ControllerRegister) ServeHTTP(rw http.ResponseWriter, r *http.Request) 
 		}
 
 		// also defined runRouter & runMethod from filter
+		//没有正在运行的情况,即在732行的两个 if都没有匹配到
 		if !isRunnable {
 			//Invoke the request handler
 			vc := reflect.New(runRouter)
-			execController, ok := vc.Interface().(ControllerInterface)
+			execController, ok := vc.Interface().(ControllerInterface)//这是为了还原出注册时的 Controller结构体变量
 			if !ok {
 				panic("controller is not ControllerInterface")
 			}
 
 			//call the controller init function
+			//调用 Controller的 init()函数
 			execController.Init(context, runRouter.Name(), runMethod, vc.Interface())
 
 			//call prepare function
+			//调用 Controller的 Prepare()函数
 			execController.Prepare()
 
 			//if XSRF is Enable then check cookie where there has any cookie in the  request's cookie _csrf
@@ -780,7 +791,7 @@ func (p *ControllerRegister) ServeHTTP(rw http.ResponseWriter, r *http.Request) 
 			}
 
 			execController.URLMapping()
-
+			//根据方法调用不同的处理函数
 			if !context.ResponseWriter.Started {
 				//exec main logic
 				switch runMethod {
@@ -817,15 +828,17 @@ func (p *ControllerRegister) ServeHTTP(rw http.ResponseWriter, r *http.Request) 
 			}
 
 			// finish all runRouter. release resource
+			//处理完,进行资源的释放
 			execController.Finish()
 		}
 
 		//execute middleware filters
+		//执行对应的 Filters
 		if p.execFilter(context, AfterExec, urlPath) {
 			goto Admin
 		}
 	}
-
+	//在处理完请求后,执行对应的 Filters
 	p.execFilter(context, FinishRouter, urlPath)
 
 /*
