@@ -33,19 +33,20 @@ var errNotStaticRequest = errors.New("request not a static file request")
 
 func serverStaticRouter(ctx *context.Context) {
 	if ctx.Input.Method() != "GET" && ctx.Input.Method() != "HEAD" {
+		//对于这两种方法外的直接返回
 		return
 	}
 
-	forbidden, filePath, fileInfo, err := lookupFile(ctx)
+	forbidden, filePath, fileInfo, err := lookupFile(ctx)//找到对应的文件
 	if err == errNotStaticRequest {
 		return
 	}
-
+	//不允许访问的文件, FORBIDDEN
 	if forbidden {
 		exception("403", ctx)
 		return
 	}
-
+	//　未找到的情况 Not Found
 	if filePath == "" || fileInfo == nil {
 		if BConfig.RunMode == DEV {
 			Warn("Can't find/open the file:", filePath, err)
@@ -54,7 +55,8 @@ func serverStaticRouter(ctx *context.Context) {
 		return
 	}
 	if fileInfo.IsDir() {
-		//serveFile will list dir
+		//查找到的文件是目录时
+		//返回目录中文件的列表
 		http.ServeFile(ctx.ResponseWriter, ctx.Request, filePath)
 		return
 	}
@@ -143,6 +145,7 @@ func isStaticCompress(filePath string) bool {
 
 // searchFile search the file by url path
 // if none the static file prefix matches ,return notStaticRequestErr
+//　根据　url寻找对应的文件,如果没有匹配到静态文件,返回　notStaticRequestErr 错误
 func searchFile(ctx *context.Context) (string, os.FileInfo, error) {
 	requestPath := filepath.ToSlash(filepath.Clean(ctx.Request.URL.Path))
 	// special processing : favicon.ico/robots.txt  can be in any static dir
@@ -184,14 +187,18 @@ func searchFile(ctx *context.Context) (string, os.FileInfo, error) {
 func lookupFile(ctx *context.Context) (bool, string, os.FileInfo, error) {
 	fp, fi, err := searchFile(ctx)
 	if fp == "" || fi == nil {
+		//没找到目标文件
 		return false, "", nil, err
 	}
 	if !fi.IsDir() {
+		//目标文件不是目录则返回文件路径,文件信息(os.FileInfo类型)
 		return false, fp, fi, err
 	}
 	ifp := filepath.Join(fp, "index.html")
+	//如果目标文件是目录,就寻找 index.html作为默认文件
 	if ifi, _ := os.Stat(ifp); ifi != nil && ifi.Mode().IsRegular() {
 		return false, ifp, ifi, err
 	}
+	//index.html不存在或者是目录时,返回目录的索引
 	return !BConfig.WebConfig.DirectoryIndex, fp, fi, err
 }
